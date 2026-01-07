@@ -1,0 +1,1035 @@
+<!DOCTYPE html><html lang="fr"><head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js" integrity="sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+      (function() {
+        const originalConsole = window.console;
+        window.console = {
+          log: (...args) => {
+            originalConsole.log(...args);
+            window.parent.postMessage({ type: 'console', message: args.join(' ') }, '*');
+          },
+          error: (...args) => {
+            originalConsole.error(...args);
+            window.parent.postMessage({ type: 'console', message: 'Error: ' + args.join(' ') }, '*');
+          },
+          warn: (...args) => {
+            originalConsole.warn(...args);
+            window.parent.postMessage({ type: 'console', message: 'Warning: ' + args.join(' ') }, '*');
+          }
+        };
+
+        let requestId = 0;
+        let callbacksMap = new Map();
+        let streamControllers = new Map();
+        
+        window.claude = {
+          complete: (prompt) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'claudeComplete', id, prompt }, '*');
+            });
+          }
+        };
+
+        window.storage = {
+          get: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageGet', id, key, shared }, '*');
+            });
+          },
+          set: (key, value, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageSet', id, key, value, shared }, '*');
+            });
+          },
+          delete: (key, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageDelete', id, key, shared }, '*');
+            });
+          },
+          list: (prefix, shared = false) => {
+            return new Promise((resolve, reject) => {
+              const id = requestId++;
+              callbacksMap.set(id, { resolve, reject });
+              window.parent.postMessage({ type: 'storageList', id, prefix, shared }, '*');
+            });
+          }
+        };
+
+        let pendingBlobs = new Map();
+        URL.createObjectURL = (blob) => {
+          // Store the blob and create an ID and URL for it
+          const blobId = `blob-${Date.now()}-${Math.random()}`;
+          pendingBlobs.set(blobId, blob);
+          return `blob-request://${blobId}`;
+        };
+
+        URL.revokeObjectURL = (url) => {
+          // Remove the blob from our store
+          const blobId = url.replace("blob-request://", "");
+          pendingBlobs.delete(blobId);
+        };
+
+        const getBlobFromURL = (url) => {
+          const blobId = url.replace("blob-request://", "");
+          return pendingBlobs.get(blobId);
+        };
+
+        // Override global fetch with streaming support
+        window.fetch = (url, init = {}) => {
+          return new Promise((resolve, reject) => {
+            const id = requestId++;
+            const channelId = `fetch-${id}-${Date.now()}`;
+            
+            callbacksMap.set(id, { 
+              resolve: (response) => {
+                // Create a ReadableStream for the response body
+                const stream = new ReadableStream({
+                  start(controller) {
+                    streamControllers.set(channelId, controller);
+                  },
+                  cancel() {
+                    streamControllers.delete(channelId);
+                  }
+                });
+                
+                // Create and return the Response with the stream
+                resolve(new Response(stream, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                }));
+              },
+              reject,
+              channelId
+            });
+            
+            window.parent.postMessage({
+              type: 'proxyFetch',
+              id,
+              url,
+              init,
+              channelId
+            }, '*');
+          });
+        };
+
+        window.addEventListener('message', async (event) => {
+          if (event.data.type === 'takeScreenshot') {
+            const rootElement = document.getElementById('artifacts-component-root-html');
+            if (!rootElement) {
+              window.parent.postMessage({
+                type: 'screenshotError',
+                error: new Error('Root element not found'),
+              }, '*');
+            }
+            const screenshot = await htmlToImage.toPng(rootElement, {
+              imagePlaceholder:
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAAA1JREFUGFdjePDgwX8ACOQDoNsk0PMAAAAASUVORK5CYII=",
+            });
+            window.parent.postMessage({
+              type: 'screenshotData',
+              data: screenshot,
+            }, '*');
+          } else if (event.data.type === 'claudeComplete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.completion);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'proxyFetchResponse') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+              callbacksMap.delete(event.data.id);
+            } else {
+              // Initial response with headers, status, etc.
+              callback.resolve({
+                status: event.data.status,
+                statusText: event.data.statusText,
+                headers: event.data.headers
+              });
+              // Don't delete the callback yet if streaming
+              if (!event.data.body) {
+                callbacksMap.delete(event.data.id);
+              }
+            }
+          } else if (event.data.type === 'proxyFetchStream') {
+            // Handle streaming data chunks
+            const controller = streamControllers.get(event.data.channelId);
+            if (controller) {
+              if (event.data.error) {
+                controller.error(new Error(event.data.error));
+                streamControllers.delete(event.data.channelId);
+              } else if (event.data.done) {
+                controller.close();
+                streamControllers.delete(event.data.channelId);
+                // Clean up the callback
+                const callback = Array.from(callbacksMap.entries()).find(
+                  ([_, value]) => value.channelId === event.data.channelId
+                );
+                if (callback) {
+                  callbacksMap.delete(callback[0]);
+                }
+              } else if (event.data.chunk) {
+                controller.enqueue(new Uint8Array(event.data.chunk));
+              }
+            }
+          } else if (event.data.type === 'storageGet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageSet') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageDelete') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          } else if (event.data.type === 'storageList') {
+            const callback = callbacksMap.get(event.data.id);
+            if (event.data.error) {
+              callback.reject(new Error(event.data.error));
+            } else {
+              callback.resolve(event.data.result);
+            }
+            callbacksMap.delete(event.data.id);
+          }
+        });
+
+        window.addEventListener('click', (event) => {
+          const isEl = event.target instanceof HTMLElement;
+          if (!isEl) return;
+    
+          // find ancestor links
+          const linkEl = event.target.closest("a");
+          if (!linkEl || !linkEl.href) return;
+    
+          event.preventDefault();
+          event.stopImmediatePropagation();
+    
+          if (linkEl.href.startsWith("blob-request:")) {
+            const blob = getBlobFromURL(linkEl.href);
+            if (!blob) return;
+            void blob.arrayBuffer().then((data) => {
+              window.parent.postMessage({
+                type: "downloadFile",
+                filename: linkEl.download,
+                data,
+                mimeType: blob.type || "application/octet-stream",
+              });
+            });
+          } else if (linkEl.href.startsWith("data:")) {
+            const [header, base64Data] = linkEl.href.split(",");
+            const mimeMatch = header.match(/data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+            const binaryString = atob(base64Data);
+            const data = Uint8Array.from(binaryString, (c) =>
+              c.charCodeAt(0),
+            ).buffer;
+            window.parent.postMessage({
+              type: "downloadFile",
+              filename: linkEl.download,
+              data,
+              mimeType,
+            });
+          } else {
+            let linkUrl;
+            try {
+              linkUrl = new URL(linkEl.href);
+            } catch (error) {
+              return;
+            }
+    
+            if (linkUrl.hostname === window.location.hostname) return;
+      
+            window.parent.postMessage({
+              type: 'openExternal',
+              href: linkEl.href,
+            }, '*');
+          }
+      });
+
+        const originalOpen = window.open;
+        window.open = function (url) {
+          window.parent.postMessage({
+            type: "openExternal",
+            href: url,
+          }, "*");
+        };
+
+        window.addEventListener('error', (event) => {
+          window.parent.postMessage({ type: 'console', message: 'Uncaught Error: ' + event.message }, '*');
+        });
+      })();
+    </script>
+  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programme Détente Verticale</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .ebook-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .cover {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 80px 40px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .logo-container {
+            position: absolute;
+            top: 30px;
+            left: 40px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .footer-logo {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 15px;
+        }
+        
+        .footer-logo img {
+            width: 80px;
+            height: auto;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+	    border-radius: 20px;
+        }
+        
+        .footer-logo img:hover {
+            opacity: 1;
+        }
+        
+        .footer-logo p {
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .cover::before {
+            content: '🏀';
+            position: absolute;
+            font-size: 200px;
+            opacity: 0.1;
+            top: -50px;
+            right: -50px;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .cover h1 {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .cover .subtitle {
+            font-size: 1.3em;
+            font-weight: 300;
+            margin-bottom: 30px;
+        }
+        
+        .profile-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 15px 30px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+        }
+        
+        .content {
+            padding: 50px 40px;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #f093fb;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .day-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .day-name {
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+        
+        .day-focus {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+        
+        .exercise {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .exercise-name {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        
+        .exercise-duration {
+            background: rgba(245, 87, 108, 0.8);
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .exercise-details {
+            line-height: 1.8;
+        }
+        
+        .info-box {
+            background: #e8f4f8;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #f5576c;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box strong {
+            color: #f5576c;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .rest-day {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #2c3e50;
+            text-align: center;
+            padding: 40px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .rest-day h3 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+        
+        .illustration {
+            text-align: center;
+            font-size: 4em;
+            margin: 20px 0;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .print-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .print-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .print-btn {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cover h1 {
+                font-size: 2em;
+            }
+            .content {
+                padding: 30px 20px;
+            }
+            .day-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .logo-container {
+                width: 80px;
+                height: 80px;
+                top: 20px;
+                left: 20px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="ebook-container">
+        <div class="cover">
+            <div class="logo-container">
+                <img src="logo.png" alt="NCLS Logo">
+            </div>
+            <h1>PROGRAMME DÉTENTE VERTICALE</h1>
+            <div class="subtitle">Programme sur 8 semaines pour basketteur</div>
+            <div class="profile-badge">
+                Julien |👤 16 ans | 📏 1m90 | 🏀 Basketball
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">📋 Introduction</h2>
+                <p>Ce programme est spécialement conçu pour améliorer ta détente verticale tout en respectant ton emploi du temps d'entraînement et tes besoins de récupération à 16 ans. La clé du succès réside dans la régularité et la qualité d'exécution des mouvements.</p>
+                
+                <div class="info-box">
+                    <strong>🎯 Objectifs du programme :</strong>
+                    <ul>
+                        <li>Augmenter la puissance explosive des jambes</li>
+                        <li>Renforcer les muscles stabilisateurs</li>
+                        <li>Améliorer la coordination neuromusculaire</li>
+                        <li>Prévenir les blessures</li>
+                    </ul>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ Points importants :</strong>
+                    <ul>
+                        <li>Toujours s'échauffer correctement avant chaque séance</li>
+                        <li>Respecter les temps de repos entre les séries</li>
+                        <li>Privilégier la qualité à la quantité</li>
+                        <li>Bien s'hydrater et dormir 8-9h par nuit</li>
+                        <li>Arrêter immédiatement en cas de douleur anormale</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📅 Planning Hebdomadaire</h2>
+                
+                <!-- LUNDI -->
+                <div class="day-card">
+                    <div class="day-header">
+                        <div class="day-name">LUNDI</div>
+                        <div class="day-focus">Force explosive</div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🔥 Échauffement dynamique</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Jumping jacks : 2 min<br>
+                            • Montées de genoux : 30 secondes × 2<br>
+                            • Talons-fesses : 30 secondes × 2<br>
+                            • Rotation des chevilles : 20 rotations par pied<br>
+                            • Squats au poids du corps : 15 répétitions × 2
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">💪 Squats sautés</div>
+                            <div class="exercise-duration">12 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 4 séries de 10 répétitions<br>
+                            • Repos : 2 minutes entre chaque série<br>
+                            • Descendre jusqu'à 90° puis exploser vers le haut<br>
+                            • Réception souple sur les avant-pieds
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🦘 Box jumps (ou sur banc)</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 3 séries de 8 répétitions<br>
+                            • Repos : 2 minutes entre séries<br>
+                            • Hauteur : 40-50 cm pour commencer<br>
+                            • Se concentrer sur l'explosivité du saut
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🏋️ Fentes sautées alternées</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 3 séries de 16 répétitions (8 par jambe)<br>
+                            • Repos : 90 secondes entre séries<br>
+                            • Alterner les jambes en sautant<br>
+                            • Maintenir le buste droit
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🧘 Étirements</div>
+                            <div class="exercise-duration">8 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Quadriceps : 30 sec par jambe<br>
+                            • Ischio-jambiers : 30 sec par jambe<br>
+                            • Mollets : 30 sec par jambe<br>
+                            • Psoas : 30 sec par jambe<br>
+                            • Fessiers : 30 sec par jambe
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600;">
+                        ⏱️ DURÉE TOTALE : 50 minutes
+                    </div>
+                </div>
+                
+                <!-- MARDI -->
+                <div class="rest-day">
+                    <h3>MARDI</h3>
+                    <div class="illustration">🏀</div>
+                    <p style="font-size: 1.1em;"><strong>Entraînement Basketball</strong></p>
+                    <p style="margin-top: 10px;">19h - 20h30</p>
+                    <p style="margin-top: 15px; font-style: italic;">Repos actif - Pas de séance détente verticale</p>
+                </div>
+                
+                <!-- MERCREDI -->
+                <div class="day-card">
+                    <div class="day-header">
+                        <div class="day-name">MERCREDI</div>
+                        <div class="day-focus">Pliométrie &amp; Réactivité</div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🔥 Échauffement</div>
+                            <div class="exercise-duration">8 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Course légère sur place : 2 min<br>
+                            • Sauts légers sur place : 1 min<br>
+                            • Mobilité des chevilles : 2 min<br>
+                            • Squats dynamiques : 15 reps × 2
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">⚡ Sauts à la corde</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 5 séries de 1 minute<br>
+                            • Repos : 1 minute entre séries<br>
+                            • Alterner : pieds joints / pieds alternés<br>
+                            • Focus sur la vitesse et la légèreté
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🎯 Depth jumps</div>
+                            <div class="exercise-duration">12 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 4 séries de 6 répétitions<br>
+                            • Repos : 2 min 30 entre séries<br>
+                            • Se laisser tomber d'une hauteur de 30-40 cm<br>
+                            • Rebondir immédiatement vers le haut<br>
+                            • Minimiser le temps au sol
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🔄 Sauts latéraux</div>
+                            <div class="exercise-duration">8 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 3 séries de 20 répétitions (10 de chaque côté)<br>
+                            • Repos : 90 secondes entre séries<br>
+                            • Sauter d'un côté à l'autre par-dessus une ligne<br>
+                            • Garder les genoux légèrement fléchis
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🧘 Étirements &amp; Récupération</div>
+                            <div class="exercise-duration">7 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Étirements des jambes complets<br>
+                            • Respiration profonde<br>
+                            • Hydratation
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600;">
+                        ⏱️ DURÉE TOTALE : 45 minutes
+                    </div>
+                </div>
+                
+                <!-- JEUDI -->
+                <div class="rest-day">
+                    <h3>JEUDI</h3>
+                    <div class="illustration">🏀</div>
+                    <p style="font-size: 1.1em;"><strong>Entraînement Basketball</strong></p>
+                    <p style="margin-top: 10px;">19h - 20h30</p>
+                    <p style="margin-top: 15px; font-style: italic;">Repos actif - Pas de séance détente verticale</p>
+                </div>
+                
+                <!-- VENDREDI -->
+                <div class="day-card">
+                    <div class="day-header">
+                        <div class="day-name">VENDREDI</div>
+                        <div class="day-focus">Force &amp; Renforcement</div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🔥 Échauffement</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Vélo d'appartement ou course : 5 min<br>
+                            • Mobilité articulaire complète : 5 min
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">💪 Squat bulgare</div>
+                            <div class="exercise-duration">12 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 4 séries de 10 répétitions par jambe<br>
+                            • Repos : 90 secondes entre séries<br>
+                            • Pied arrière surélevé sur banc<br>
+                            • Descendre contrôlé, remonter explosif
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🦵 Extensions mollets (sur marche)</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 4 séries de 15 répétitions<br>
+                            • Repos : 1 minute entre séries<br>
+                            • Monter sur la pointe des pieds<br>
+                            • Descendre sous le niveau de la marche<br>
+                            • Progression : une jambe à la fois
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🏃 Sprints courts + saut vertical</div>
+                            <div class="exercise-duration">10 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • 6 répétitions<br>
+                            • Sprint 10 mètres → Saut vertical maximal<br>
+                            • Repos : 2 minutes entre chaque<br>
+                            • Simuler un lay-up ou dunk
+                        </div>
+                    </div>
+                    
+                    <div class="exercise">
+                        <div class="exercise-header">
+                            <div class="exercise-name">🧊 Récupération</div>
+                            <div class="exercise-duration">8 min</div>
+                        </div>
+                        <div class="exercise-details">
+                            • Marche légère : 3 min<br>
+                            • Étirements passifs : 5 min
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600;">
+                        ⏱️ DURÉE TOTALE : 50 minutes
+                    </div>
+                </div>
+                
+                <!-- SAMEDI -->
+                <div class="rest-day">
+                    <h3>SAMEDI</h3>
+                    <div class="illustration">🏀</div>
+                    <p style="font-size: 1.1em;"><strong>Match de Basketball</strong></p>
+                    <p style="margin-top: 15px; font-weight: 600;">Séance légère de récupération (OPTIONNELLE)</p>
+                    <div style="margin-top: 20px; text-align: left; display: inline-block;">
+                        <p>Si tu te sens bien :</p>
+                        <ul style="margin-top: 10px;">
+                            <li>10 min de vélo léger</li>
+                            <li>15 min d'étirements doux</li>
+                            <li>Automassages avec rouleau</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- DIMANCHE -->
+                <div class="rest-day">
+                    <h3>DIMANCHE</h3>
+                    <div class="illustration">😴</div>
+                    <p style="font-size: 1.3em; font-weight: 600; margin-top: 15px;">REPOS COMPLET</p>
+                    <p style="margin-top: 15px; font-style: italic;">Récupération totale - Sommeil - Nutrition</p>
+                    <p style="margin-top: 10px;">C'est pendant le repos que tes muscles se développent ! 💪</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">💡 Conseils Nutrition</h2>
+                
+                <div class="info-box">
+                    <strong>🥗 Avant l'entraînement (1-2h avant) :</strong>
+                    <ul>
+                        <li>Glucides complexes : pâtes, riz, pain complet</li>
+                        <li>Protéines maigres : poulet, poisson, œufs</li>
+                        <li>Hydratation : 500 ml d'eau</li>
+                    </ul>
+                </div>
+                
+                <div class="info-box">
+                    <strong>🍗 Après l'entraînement (dans les 30 min) :</strong>
+                    <ul>
+                        <li>Protéines : shake, yaourt grec, poulet</li>
+                        <li>Glucides rapides : banane, miel, jus de fruit</li>
+                        <li>Hydratation : 750 ml d'eau</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📈 Progression</h2>
+                <p>Toutes les 2 semaines, tu peux augmenter progressivement :</p>
+                <ul style="margin-left: 20px; margin-top: 15px;">
+                    <li>Le nombre de répétitions (+2 par série)</li>
+                    <li>Le nombre de séries (+1 série maximum)</li>
+                    <li>La hauteur des box jumps (+5-10 cm)</li>
+                    <li>L'intensité des depth jumps</li>
+                </ul>
+                
+                <div class="warning-box" style="margin-top: 25px;">
+                    <strong>⚠️ Signes d'alerte :</strong>
+                    <p>Arrête immédiatement et consulte si tu ressens :</p>
+                    <ul>
+                        <li>Douleur aiguë au genou, cheville ou dos</li>
+                        <li>Fatigue excessive persistante</li>
+                        <li>Troubles du sommeil</li>
+                        <li>Perte d'appétit</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">✅ Checklist Quotidienne</h2>
+                <div class="info-box">
+                    <ul>
+                        <li>☑️ 8-9 heures de sommeil</li>
+                        <li>☑️ 2-3 litres d'eau par jour</li>
+                        <li>☑️ 3 repas équilibrés + collations</li>
+                        <li>☑️ Échauffement avant chaque séance</li>
+                        <li>☑️ Étirements après chaque séance</li>
+                        <li>☑️ Noter tes performances dans un carnet</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section" style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; margin-top: 50px;">
+                <h2 style="font-size: 2.5em; margin-bottom: 20px;">🏆</h2>
+                <h3 style="font-size: 1.8em; margin-bottom: 15px;">Bonne chance dans ton programme !</h3>
+                <p style="font-size: 1.1em; line-height: 1.8;">
+                    La constance est la clé du succès. Reste motivé, travaille dur, 
+                    et les résultats viendront ! 💪🏀
+                </p>
+            </div>
+            
+            <div class="footer-logo">
+                <img src="logo.png" alt="NCLS Logo">
+                <p>Programme conçu par NCLS Performance</p>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    <script>
+        function downloadAsHTML() {
+            // Créer une copie du document sans les boutons
+            const clone = document.documentElement.cloneNode(true);
+            const buttons = clone.querySelector('[style*="position: fixed"]');
+            if (buttons) buttons.remove();
+            
+            // Créer le contenu HTML complet
+            const htmlContent = '<!DOCTYPE html>' + clone.outerHTML;
+            
+            // Créer un blob et télécharger
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Programme_Detente_Verticale_Basketball.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Message d'aide pour l'impression en PDF
+        window.addEventListener('beforeprint', function() {
+            console.log('Pour enregistrer en PDF: Choisir "Enregistrer au format PDF" dans la fenêtre d\'impression');
+        });
+    </script>
+
+</body></html>
