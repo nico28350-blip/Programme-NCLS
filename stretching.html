@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programme Étirements Basketball</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .ebook-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .cover {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            padding: 80px 40px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .logo-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .footer-logo {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 15px;
+        }
+        
+        .footer-logo img {
+            width: 80px;
+            height: auto;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+	    border-radius: 20px;
+        }
+        
+        .footer-logo img:hover {
+            opacity: 1;
+        }
+        
+        .footer-logo p {
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .cover::before {
+            content: '🧘';
+            position: absolute;
+            font-size: 200px;
+            opacity: 0.1;
+            top: -50px;
+            right: -50px;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .cover h1 {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .cover .subtitle {
+            font-size: 1.3em;
+            font-weight: 300;
+            margin-bottom: 30px;
+        }
+        
+        .profile-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 15px 30px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+        }
+        
+        .content {
+            padding: 50px 40px;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 2em;
+            font-weight: 700;
+            color: #43e97b;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #38f9d7;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .stretch-card {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(67, 233, 123, 0.3);
+        }
+        
+        .stretch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stretch-name {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+        
+        .stretch-duration {
+            background: rgba(255,255,255,0.3);
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stretch-description {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            line-height: 1.8;
+        }
+        
+        .muscle-target {
+            background: rgba(56, 249, 215, 0.3);
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        
+        .routine-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .routine-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stretch-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .stretch-item-name {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .stretch-item-time {
+            background: rgba(67, 233, 123, 0.8);
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-weight: 600;
+        }
+        
+        .info-box {
+            background: #e8f8f5;
+            border-left: 5px solid #43e97b;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box strong {
+            color: #43e97b;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ff6b6b;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box strong {
+            color: #ff6b6b;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .tip-box {
+            background: linear-gradient(135deg, rgba(67, 233, 123, 0.1) 0%, rgba(56, 249, 215, 0.1) 100%);
+            border: 2px solid #43e97b;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+        }
+        
+        .tip-box strong {
+            color: #43e97b;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .cover h1 {
+                font-size: 2em;
+            }
+            .content {
+                padding: 30px 20px;
+            }
+            .stretch-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body id="artifacts-component-root-html">
+    <div class="ebook-container">
+        <div class="cover">
+ 	    <div class="logo-container">
+                <img src="C:\Users\nico2\OneDrive\Images\Captures d’écran\Capture d'écran 2024-04-27 025133.png" alt="NCLS Logo">
+            </div>
+            <h1>PROGRAMME ÉTIREMENTS</h1>
+            <div class="subtitle">Complément essentiel au programme détente verticale</div>
+            <div class="profile-badge">
+                Julien | 👤 16 ans | 📏 1m90 | 🏀 Basketball
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">📋 Introduction</h2>
+                <p>Les étirements sont une composante essentielle de ton programme de détente verticale. Ils permettent d'améliorer ta flexibilité, de prévenir les blessures, d'optimiser ta récupération et d'augmenter ton amplitude de mouvement pour des sauts plus efficaces.</p>
+                
+                <div class="info-box">
+                    <strong>🎯 Objectifs du programme d'étirements :</strong>
+                    <ul>
+                        <li>Améliorer la flexibilité musculaire et articulaire</li>
+                        <li>Réduire les tensions et courbatures</li>
+                        <li>Optimiser la récupération musculaire</li>
+                        <li>Prévenir les blessures (entorses, déchirures)</li>
+                        <li>Améliorer la posture et l'équilibre</li>
+                    </ul>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ Règles d'or des étirements :</strong>
+                    <ul>
+                        <li>NE JAMAIS étirer un muscle froid (toujours après échauffement ou entraînement)</li>
+                        <li>Respirer profondément et calmement pendant l'étirement</li>
+                        <li>Ne JAMAIS forcer jusqu'à la douleur (sensation de tension OK, douleur NON)</li>
+                        <li>Maintenir chaque position sans rebond</li>
+                        <li>Pas d'étirements statiques intenses AVANT un entraînement explosif</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🕐 Types d'étirements</h2>
+                
+                <div class="tip-box">
+                    <strong>💡 Étirements dynamiques (avant l'entraînement)</strong>
+                    <p>Mouvements contrôlés qui préparent les muscles à l'effort. Durée courte : 5-10 secondes par mouvement, répété 8-10 fois.</p>
+                </div>
+                
+                <div class="tip-box">
+                    <strong>💡 Étirements statiques (après l'entraînement)</strong>
+                    <p>Positions maintenues pour détendre et allonger les muscles. Durée : 30-45 secondes par étirement, 2-3 répétitions.</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🔥 Étirements Dynamiques (Pré-Entraînement)</h2>
+                <p style="margin-bottom: 25px;"><em>À réaliser pendant l'échauffement avant chaque séance de détente verticale</em></p>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">1️⃣ Balancements de jambe (avant-arrière)</div>
+                        <div class="stretch-duration">10 reps par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Debout, en appui sur un mur ou un support<br>
+                        • Balance la jambe d'avant en arrière de manière contrôlée<br>
+                        • Augmente progressivement l'amplitude<br>
+                        • Garde le tronc droit et stable<br>
+                        • Contrôle le mouvement, pas de balancement brusque
+                    </div>
+                    <div class="muscle-target">🎯 Cibles : Ischio-jambiers, Quadriceps, Psoas</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">2️⃣ Balancements latéraux de jambe</div>
+                        <div class="stretch-duration">10 reps par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Debout, en appui sur un support<br>
+                        • Balance la jambe de gauche à droite<br>
+                        • Croise devant le corps puis ouvre vers l'extérieur<br>
+                        • Garde les hanches stables<br>
+                        • Mouvement fluide et contrôlé
+                    </div>
+                    <div class="muscle-target">🎯 Cibles : Adducteurs, Abducteurs, Hanches</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">3️⃣ Rotation des hanches (genou levé)</div>
+                        <div class="stretch-duration">8 reps par côté</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Debout, monte un genou à 90°<br>
+                        • Rotation de la hanche vers l'extérieur puis vers l'intérieur<br>
+                        • Dessine un grand cercle avec le genou<br>
+                        • Maintiens l'équilibre sur la jambe d'appui<br>
+                        • 4 rotations dans un sens, 4 dans l'autre
+                    </div>
+                    <div class="muscle-target">🎯 Cibles : Hanches, Fessiers, Stabilisateurs</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">4️⃣ Fentes marchées avec rotation</div>
+                        <div class="stretch-duration">10 reps (5 par jambe)</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Fais un grand pas en avant en fente<br>
+                        • Descends le genou arrière vers le sol<br>
+                        • Effectue une rotation du tronc vers la jambe avant<br>
+                        • Ramène la jambe arrière et continue en marchant<br>
+                        • Alterne gauche-droite
+                    </div>
+                    <div class="muscle-target">🎯 Cibles : Psoas, Quadriceps, Tronc</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">5️⃣ Genoux hauts dynamiques</div>
+                        <div class="stretch-duration">20 secondes</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Course sur place avec montées de genoux<br>
+                        • Monte les genoux jusqu'à hauteur des hanches<br>
+                        • Bras en mouvement de course<br>
+                        • Rythme progressif : commence lentement, accélère<br>
+                        • Reste sur les avant-pieds
+                    </div>
+                    <div class="muscle-target">🎯 Cibles : Psoas, Quadriceps, Mollets</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🧘 Étirements Statiques (Post-Entraînement)</h2>
+                <p style="margin-bottom: 25px;"><em>À réaliser après chaque séance de détente verticale - Maintenir 30-45 secondes</em></p>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">1️⃣ Étirement quadriceps debout</div>
+                        <div class="stretch-duration">30-45 sec par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Debout, plie une jambe derrière toi<br>
+                        • Attrape ta cheville avec la main du même côté<br>
+                        • Ramène le talon vers les fessiers<br>
+                        • Garde les genoux alignés et le bassin en position neutre<br>
+                        • Pousse légèrement les hanches vers l'avant<br>
+                        • Utilise un support pour l'équilibre si nécessaire
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Quadriceps (avant de la cuisse)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">2️⃣ Étirement ischio-jambiers assis</div>
+                        <div class="stretch-duration">30-45 sec par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Assis au sol, jambe droite tendue devant toi<br>
+                        • Jambe gauche pliée, plante du pied contre cuisse droite<br>
+                        • Penche-toi vers l'avant en gardant le dos droit<br>
+                        • Essaie de toucher tes orteils (ou tibia si difficile)<br>
+                        • Ressens l'étirement à l'arrière de la cuisse<br>
+                        • Change de jambe
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Ischio-jambiers (arrière de la cuisse)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">3️⃣ Étirement mollets au mur</div>
+                        <div class="stretch-duration">30-45 sec par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Face à un mur, mains appuyées dessus<br>
+                        • Jambe droite tendue derrière, talon au sol<br>
+                        • Jambe gauche pliée devant<br>
+                        • Pousse les hanches vers l'avant<br>
+                        • Garde le talon arrière bien ancré au sol<br>
+                        • Variation : plie légèrement le genou arrière pour étirer le soléaire
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Mollets (gastrocnémien et soléaire)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">4️⃣ Étirement fessiers (figure 4)</div>
+                        <div class="stretch-duration">30-45 sec par côté</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Allongé sur le dos, genoux pliés<br>
+                        • Place la cheville droite sur le genou gauche<br>
+                        • Attrape l'arrière de la cuisse gauche avec les deux mains<br>
+                        • Tire doucement la jambe vers toi<br>
+                        • Garde la tête et les épaules au sol<br>
+                        • Ressens l'étirement dans le fessier droit
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Fessiers, Piriforme</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">5️⃣ Étirement psoas (fente basse)</div>
+                        <div class="stretch-duration">30-45 sec par jambe</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Position de fente, genou arrière au sol<br>
+                        • Jambe avant pliée à 90°<br>
+                        • Pousse les hanches vers l'avant et légèrement vers le bas<br>
+                        • Garde le buste droit, épaules en arrière<br>
+                        • Lève le bras du même côté que la jambe arrière pour intensifier<br>
+                        • Ressens l'étirement à l'avant de la hanche
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Psoas (fléchisseur de hanche)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">6️⃣ Étirement adducteurs (papillon)</div>
+                        <div class="stretch-duration">45 secondes</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Assis au sol, plantes des pieds jointes<br>
+                        • Rapproche les talons vers toi<br>
+                        • Tiens les pieds avec les mains<br>
+                        • Penche-toi doucement vers l'avant, dos droit<br>
+                        • Tu peux appuyer légèrement sur les genoux avec les coudes<br>
+                        • Ressens l'étirement à l'intérieur des cuisses
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Adducteurs (intérieur des cuisses)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">7️⃣ Étirement chaîne postérieure (chien tête en bas)</div>
+                        <div class="stretch-duration">30-45 secondes</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Position en V inversé, mains et pieds au sol<br>
+                        • Pousse les hanches vers le haut et vers l'arrière<br>
+                        • Essaie de poser les talons au sol<br>
+                        • Garde les bras et les jambes tendus<br>
+                        • Tête relâchée entre les bras<br>
+                        • Respire profondément
+                    </div>
+                    <div class="muscle-target">🎯 Cible : Chaîne postérieure complète (dos, ischio, mollets)</div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">8️⃣ Étirement TFL et bandelette (position genou croisé)</div>
+                        <div class="stretch-duration">30-45 sec par côté</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Exécution :</strong><br>
+                        • Debout, croise la jambe droite derrière la gauche<br>
+                        • Penche le tronc vers la gauche<br>
+                        • Bras droit levé au-dessus de la tête, penché vers la gauche<br>
+                        • Pousse légèrement la hanche droite vers la droite<br>
+                        • Ressens l'étirement sur le côté externe de la cuisse/hanche<br>
+                        • Change de côté
+                    </div>
+                    <div class="muscle-target">🎯 Cible : TFL, Bandelette ilio-tibiale</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📅 Routines d'Étirements par Séance</h2>
+                
+                <div class="routine-card">
+                    <div class="routine-title">🟢 ROUTINE LUNDI (Post Force Explosive)</div>
+                    <p style="text-align: center; margin-bottom: 20px; font-style: italic;">Focus : Quadriceps, Fessiers, Ischio-jambiers</p>
+                    
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Quadriceps debout</div>
+                        <div class="stretch-item-time">45 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Ischio-jambiers assis</div>
+                        <div class="stretch-item-time">45 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Fessiers (figure 4)</div>
+                        <div class="stretch-item-time">40 sec × 2 par côté</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Psoas (fente basse)</div>
+                        <div class="stretch-item-time">40 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Mollets au mur</div>
+                        <div class="stretch-item-time">30 sec × 2 par jambe</div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600; font-size: 1.1em;">
+                        ⏱️ DURÉE TOTALE : 12-15 minutes
+                    </div>
+                </div>
+                
+                <div class="routine-card">
+                    <div class="routine-title">🟡 ROUTINE MERCREDI (Post Pliométrie)</div>
+                    <p style="text-align: center; margin-bottom: 20px; font-style: italic;">Focus : Mollets, Chevilles, Chaîne postérieure</p>
+                    
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Mollets au mur (gastro + soléaire)</div>
+                        <div class="stretch-item-time">45 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Chien tête en bas</div>
+                        <div class="stretch-item-time">45 sec × 2</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Ischio-jambiers assis</div>
+                        <div class="stretch-item-time">40 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Quadriceps debout</div>
+                        <div class="stretch-item-time">30 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Fessiers (figure 4)</div>
+                        <div class="stretch-item-time">30 sec × 2 par côté</div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600; font-size: 1.1em;">
+                        ⏱️ DURÉE TOTALE : 12-15 minutes
+                    </div>
+                </div>
+                
+                <div class="routine-card">
+                    <div class="routine-title">🔵 ROUTINE VENDREDI (Post Force & Sprint)</div>
+                    <p style="text-align: center; margin-bottom: 20px; font-style: italic;">Focus : Complet - Tous les groupes musculaires</p>
+                    
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Psoas (fente basse)</div>
+                        <div class="stretch-item-time">45 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Quadriceps debout</div>
+                        <div class="stretch-item-time">40 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Ischio-jambiers assis</div>
+                        <div class="stretch-item-time">40 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Mollets au mur</div>
+                        <div class="stretch-item-time">40 sec × 2 par jambe</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">TFL et bandelette</div>
+                        <div class="stretch-item-time">30 sec × 2 par côté</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Adducteurs (papillon)</div>
+                        <div class="stretch-item-time">45 sec × 2</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Fessiers (figure 4)</div>
+                        <div class="stretch-item-time">30 sec × 2 par côté</div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; font-weight: 600; font-size: 1.1em;">
+                        ⏱️ DURÉE TOTALE : 15-18 minutes
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🌙 Routine du Soir (Optionnelle)</h2>
+                <p style="margin-bottom: 25px;"><em>À faire le soir avant de dormir pour optimiser la récupération - 10 minutes</em></p>
+                
+                <div class="routine-card">
+                    <div class="routine-title">😴 ROUTINE RELAXATION</div>
+                    
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Chien tête en bas</div>
+                        <div class="stretch-item-time">1 min</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Papillon (adducteurs)</div>
+                        <div class="stretch-item-time">1 min 30</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Fessiers allongé (figure 4)</div>
+                        <div class="stretch-item-time">1 min par côté</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Torsion spinale allongé</div>
+                        <div class="stretch-item-time">1 min par côté</div>
+                    </div>
+                    <div class="stretch-item">
+                        <div class="stretch-item-name">Position de l'enfant (relaxation)</div>
+                        <div class="stretch-item-time">2 min</div>
+                    </div>
+                    
+                    <p style="text-align: center; margin-top: 20px; font-style: italic; line-height: 1.8;">
+                        Cette routine favorise un sommeil réparateur et accélère la récupération musculaire.💤
+                    </p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">💡 Conseils Pratiques</h2>
+                
+                <div class="info-box">
+                    <strong>🎯 Quand s'étirer ?</strong>
+                    <ul>
+                        <li><strong>AVANT l'entraînement :</strong> Étirements dynamiques uniquement (inclus dans l'échauffement)</li>
+                        <li><strong>APRÈS l'entraînement :</strong> Étirements statiques (attendre 5-10 min après l'effort)</li>
+                        <li><strong>JOURS DE REPOS :</strong> Séance d'étirements doux de 15-20 minutes</li>
+                        <li><strong>LE SOIR :</strong> Routine relaxation avant le coucher</li>
+                    </ul>
+                </div>
+                
+                <div class="tip-box">
+                    <strong>✅ Technique optimale</strong>
+                    <ul>
+                        <li>Respire profondément : inspire par le nez, expire par la bouche</li>
+                        <li>Relâche-toi progressivement dans l'étirement</li>
+                        <li>Ne rebondis JAMAIS pendant un étirement statique</li>
+                        <li>Si tu trembles ou ressens une douleur, relâche légèrement</li>
+                        <li>L'étirement doit être une tension agréable, pas une douleur</li>
+                        <li>Maintiens chaque position stable et contrôlée</li>
+                    </ul>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>❌ Erreurs à éviter</strong>
+                    <ul>
+                        <li>S'étirer à froid (risque de blessure)</li>
+                        <li>Retenir sa respiration pendant l'étirement</li>
+                        <li>Forcer jusqu'à la douleur</li>
+                        <li>Faire des rebonds ou mouvements brusques</li>
+                        <li>Étirements statiques intenses juste avant un effort explosif</li>
+                        <li>Négliger certains groupes musculaires</li>
+                        <li>Maintenir moins de 20 secondes (inefficace)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📈 Progression et Adaptation</h2>
+                
+                <div class="info-box">
+                    <strong>🔄 Évolution sur 8 semaines</strong>
+                    <p><strong>Semaines 1-2 :</strong> Focus sur la technique et la conscience corporelle. Maintiens 30 secondes.</p>
+                    <p><strong>Semaines 3-4 :</strong> Augmente progressivement l'amplitude. Maintiens 35-40 secondes.</p>
+                    <p><strong>Semaines 5-6 :</strong> Approfondir les étirements. Maintiens 40-45 secondes.</p>
+                    <p><strong>Semaines 7-8 :</strong> Amplitude maximale confortable. Maintiens 45 secondes, 3 répétitions.</p>
+                </div>
+                
+                <div class="tip-box">
+                    <strong>📊 Indicateurs de progrès</strong>
+                    <ul>
+                        <li>Tu touches tes orteils plus facilement</li>
+                        <li>Moins de courbatures après les entraînements</li>
+                        <li>Amplitude de mouvement accrue dans tes sauts</li>
+                        <li>Sensation de légèreté et de mobilité</li>
+                        <li>Meilleure récupération entre les séances</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🆘 Étirements Spécifiques Anti-Blessures</h2>
+                
+                <div class="warning-box">
+                    <strong>⚠️ Zones sensibles chez les basketteurs</strong>
+                    <p>Les blessures les plus fréquentes au basket touchent les chevilles, genoux et ischio-jambiers. 
+                    Voici des étirements préventifs essentiels :</p>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">🦶 Prévention entorses chevilles</div>
+                        <div class="stretch-duration">Quotidien</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Routine spécifique :</strong><br>
+                        • Rotation des chevilles : 20 rotations dans chaque sens, matin et soir<br>
+                        • Alphabet avec le pied : dessine les lettres A à Z avec chaque pied<br>
+                        • Étirement mollets : 3 × 45 sec par jambe (version tendue et pliée)<br>
+                        • Équilibre sur une jambe : 3 × 30 sec par jambe
+                    </div>
+                </div>
+                
+                <div class="stretch-card">
+                    <div class="stretch-header">
+                        <div class="stretch-name">🦵 Protection des genoux</div>
+                        <div class="stretch-duration">Post-entraînement</div>
+                    </div>
+                    <div class="stretch-description">
+                        <strong>Routine spécifique :</strong><br>
+                        • Quadriceps : 2 × 45 sec par jambe<br>
+                        • Ischio-jambiers : 2 × 45 sec par jambe<br>
+                        • TFL et bandelette : 2 × 40 sec par côté<br>
+                        • Psoas : 2 × 40 sec par jambe<br>
+                        <em>L'équilibre musculaire autour du genou est crucial !</em>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📝 Journal d'Étirements</h2>
+                
+                <div class="tip-box">
+                    <strong>📖 Suis ta progression</strong>
+                    <p>Note chaque semaine dans un carnet :</p>
+                    <ul>
+                        <li>Les étirements effectués et leur durée</li>
+                        <li>Ton niveau de souplesse sur une échelle de 1 à 10</li>
+                        <li>Les zones encore raides ou tendues</li>
+                        <li>Comment tu te sens le lendemain (courbatures, mobilité)</li>
+                        <li>Les progrès constatés (ex: "je touche mes orteils !")</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">✅ Checklist Étirements</h2>
+                <div class="info-box">
+                    <strong>Avant de commencer :</strong>
+                    <ul>
+                        <li>☑️ Muscles échauffés (jamais à froid)</li>
+                        <li>☑️ Environnement calme et confortable</li>
+                        <li>☑️ Tapis de sol ou surface adaptée</li>
+                        <li>☑️ Vêtements souples et confortables</li>
+                        <li>☑️ Hydratation à portée de main</li>
+                        <li>☑️ 10-15 minutes de temps disponible</li>
+                    </ul>
+                </div>
+                
+                <div class="info-box">
+                    <strong>Pendant la séance :</strong>
+                    <ul>
+                        <li>☑️ Respiration profonde et régulière</li>
+                        <li>☑️ Concentration sur les sensations</li>
+                        <li>☑️ Pas de douleur, juste une tension agréable</li>
+                        <li>☑️ Maintien stable de chaque position</li>
+                        <li>☑️ Symétrie gauche-droite respectée</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section" style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; border-radius: 15px; margin-top: 50px;">
+                <h2 style="font-size: 2.5em; margin-bottom: 20px;">🧘</h2>
+                <h3 style="font-size: 1.8em; margin-bottom: 15px;">La Flexibilité, Clé de la Performance !</h3>
+                <p style="font-size: 1.1em; line-height: 1.8;">
+                    Un basketteur souple est un basketteur qui saute plus haut, 
+                    récupère mieux et se blesse moins. Tu peux intègrer ces étirements 
+                    dans ta routine quotidienne ! 🚀🏀
+                </p>
+            </div>
+            
+            <div class="footer-logo">
+                <img src="C:\Users\nico2\OneDrive\Images\Captures d’écran\Capture d'écran 2024-04-27 025133.png" alt="NCLS Logo">
+                <p style="color: #43e97b; font-weight: 600; font-size: 0.9em;">Programme d'étirements conçu par NCLS Performance</p>
+                <p style="margin-top: 10px; color: #2c3e50; font-size: 0.85em;">Complément du Programme Détente Verticale</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
