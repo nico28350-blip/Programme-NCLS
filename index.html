@@ -1069,5 +1069,12 @@
             console.log('Pour enregistrer en PDF: Choisir "Enregistrer au format PDF" dans la fenêtre d\'impression');
         });
     </script>
-
+	<script>
+	document.querySelector('.stretch-button').addEventListener('click', function(e) {
+	    e.preventDefault();
+	    alert('Clic détecté !');
+	    console.log('Redirection vers page2.html');
+	    window.location.href = 'page2.html';
+	});
+	</script>
 </body></html>
